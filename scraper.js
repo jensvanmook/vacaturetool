@@ -1,3 +1,5 @@
+console.log("🔥 SCRAPER VERSION: V3-MULTI-SOURCE-TEST");
+
 const fs = require("fs");
 const path = require("path");
 
