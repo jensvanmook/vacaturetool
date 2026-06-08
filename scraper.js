@@ -1,170 +1,100 @@
-console.log("🔥 SCRAPER VERSION: FINAL-NL-FILTER-V1");
+// scraper.js
+// 🇳🇱 NL ONLY JOB SCRAPER ENGINE (STRICT MODE)
+
+console.log("🔥 SCRAPER VERSION: NL-ONLY-HARDLOCK-V1");
+console.log("🚀 STARTING CLEAN JOB ENGINE");
+
+// ----------------------------
+// IMPORTS
+// ----------------------------
 
 const fs = require("fs");
-const path = require("path");
 
-const DATA_FILE = path.join(__dirname, "data", "vacatures.json");
+// ----------------------------
+// CONFIG
+// ----------------------------
 
-// 👤 PROFIEL (JOUW FOCUS)
-const profile = {
-  rollen: [
-    "product owner",
-    "product manager",
-    "digital consultant",
-    "digital strategist"
-  ],
+// ❌ EVERYTHING OUTSIDE NL IS BLOCKED
+const BLOCKED = [
+  "canada",
+  "united states",
+  "usa",
+  "us",
+  "latam",
+  "brazil",
+  "mexico",
+  "argentina",
+  "india",
+  "israel",
+  "americas",
+  "europe",
+  "germany",
+  "france",
+  "spain",
+  "italy",
+  "poland",
+  "uk",
+  "united kingdom",
+  "remote",
+  "worldwide"
+];
 
-  uitsluiten: [
-    "government",
-    "municipality",
-    "province",
-    "overheid",
-    "gemeente",
-    "public sector"
-  ],
+// ----------------------------
+// FETCH FUNCTIONS
+// ----------------------------
 
-  nlSignals: [
-    "netherlands",
-    "nederland",
-    "amsterdam",
-    "rotterdam",
-    "utrecht",
-    "eindhoven",
-    "den haag",
-    "nl"
-  ]
-};
-
-// ======================================================
-// 🌐 REMOTIVE
-// ======================================================
 async function fetchRemotive() {
   const res = await fetch("https://remotive.com/api/remote-jobs");
   const data = await res.json();
 
-  console.log("🔵 Remotive:", data.jobs?.length || 0);
-
-  return (data.jobs || []).map(job => ({
-    title: job.title || "",
-    company: job.company_name || "",
-    location: job.candidate_required_location || "Remote",
-    description: job.description || "",
+  return data.jobs.map(job => ({
+    title: job.title,
+    company: job.company_name,
+    location: job.candidate_required_location || "",
+    description: job.description,
     source: "remotive"
   }));
 }
 
-// ======================================================
-// 🌐 ARBEITNOW
-// ======================================================
 async function fetchArbeitnow() {
   const res = await fetch("https://www.arbeitnow.com/api/job-board-api");
   const data = await res.json();
 
-  console.log("🟢 Arbeitnow:", data.data?.length || 0);
-
-  return (data.data || []).map(job => ({
-    title: job.title || "",
-    company: job.company_name || "Unknown",
+  return data.data.map(job => ({
+    title: job.title,
+    company: job.company_name,
     location: job.location || "",
-    description: job.description || "",
+    description: job.description,
     source: "arbeitnow"
   }));
 }
 
-// ======================================================
-// 🔧 NORMALISATIE (BELANGRIJK)
-// ======================================================
-function normalize(job) {
-  return {
-    ...job,
-    _text: (
-      job.title +
-      " " +
-      job.description +
-      " " +
-      job.location
-    ).toLowerCase()
-  };
-}
+// ----------------------------
+// NL STRICT FILTER
+// ----------------------------
 
-// ======================================================
-// 🌍 FILTER: NL / RELEVANT
-// ======================================================
-function isAllowed(job) {
-  const text = job._text;
+function isNLOnly(job) {
+  const loc = (job.location || "").toLowerCase();
 
-  // ❌ EXCLUDE SECTORS
-  if (profile.uitsluiten.some(x => text.includes(x))) {
+  // ❌ HARD BLOCK EVERYTHING NON-NL
+  if (BLOCKED.some(b => loc.includes(b))) {
     return false;
   }
 
-  // ❌ HARD BLOCK USA/Canada signals
-  const badRegions = [
-    "united states",
-    "usa",
-    "canada",
-    "toronto",
-    "new york",
-    "california",
-    "texas"
-  ];
+  // ✅ MUST EXPLICITLY CONTAIN NETHERLANDS SIGNAL
+  const isNL =
+    loc.includes("netherlands") ||
+    loc.includes("holland") ||
+    loc.includes("nl") ||
+    loc.includes("the netherlands");
 
-  if (badRegions.some(x => text.includes(x))) {
-    return false;
-  }
-
-  // ✔ NL / EU SIGNALS
-  const nlMatch = profile.nlSignals.some(x => text.includes(x));
-
-  const remoteOk = text.includes("remote") || text.includes("hybrid");
-
-  return nlMatch || remoteOk;
+  return isNL;
 }
 
-// ======================================================
-// 🧠 SCORING ENGINE
-// ======================================================
-function scoreJob(job) {
-  const text = job._text;
+// ----------------------------
+// DEDUPE
+// ----------------------------
 
-  let score = 20;
-  let reasons = [];
-
-  // rol match
-  for (const role of profile.rollen) {
-    if (text.includes(role)) {
-      score += 60;
-      reasons.push("Role: " + role);
-    }
-  }
-
-  // strategy/product boost
-  if (
-    text.includes("product") ||
-    text.includes("strategy") ||
-    text.includes("consultant") ||
-    text.includes("owner")
-  ) {
-    score += 25;
-    reasons.push("Strategic role");
-  }
-
-  // remote boost
-  if (text.includes("remote")) {
-    score += 10;
-    reasons.push("Remote");
-  }
-
-  return {
-    ...job,
-    score,
-    reason: reasons.join(" + ") || "General match"
-  };
-}
-
-// ======================================================
-// 🧹 DEDUPE
-// ======================================================
 function dedupe(jobs) {
   const seen = new Set();
 
@@ -178,48 +108,36 @@ function dedupe(jobs) {
   });
 }
 
-// ======================================================
-// 🚀 MAIN
-// ======================================================
+// ----------------------------
+// MAIN RUNNER
+// ----------------------------
+
 async function run() {
-  console.log("🚀 CLEAN PERSONAL JOB ENGINE START");
+  const remotive = await fetchRemotive();
+  const arbeitnow = await fetchArbeitnow();
 
-  const [remotive, arbeitnow] = await Promise.all([
-    fetchRemotive(),
-    fetchArbeitnow()
-  ]);
+  const raw = [...remotive, ...arbeitnow];
 
-  let jobs = [...remotive, ...arbeitnow];
+  console.log("📦 RAW:", raw.length);
 
-  console.log("📦 RAW:", jobs.length);
+  // FILTER
+  const filtered = raw.filter(isNLOnly);
 
-  // normalize
-  jobs = jobs.map(normalize);
+  console.log("🇳🇱 NL ONLY RESULT:", filtered.length);
 
-  // filter
-  jobs = jobs.filter(isAllowed);
+  const final = dedupe(filtered);
 
-  console.log("🌍 AFTER FILTER:", jobs.length);
+  console.log("🏁 FINAL:", final.length);
 
-  // score
-  jobs = jobs.map(scoreJob);
+  console.log("🔥 TOP 3:", final.slice(0, 3));
 
-  // dedupe
-  jobs = dedupe(jobs);
+  // SAVE
+  fs.writeFileSync(
+    "./data/vacatures.json",
+    JSON.stringify(final, null, 2)
+  );
 
-  // sort
-  jobs.sort((a, b) => b.score - a.score);
-
-  console.log("🏁 FINAL:", jobs.length);
-  console.log("🔥 TOP 3:", jobs.slice(0, 3));
-
-  // save
-  const dir = path.dirname(DATA_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-  fs.writeFileSync(DATA_FILE, JSON.stringify(jobs, null, 2));
-
-  console.log("💾 WRITTEN CLEAN RESULTS");
+  console.log("💾 WRITTEN NL-ONLY RESULTS");
 }
 
 run();
