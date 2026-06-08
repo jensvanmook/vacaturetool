@@ -1,0 +1,26 @@
+{
+  "naam": "Jens van Mook",
+  "locatie": "Oss",
+
+  "minimum_salaris": 4700,
+  "gewenst_salaris": 5500,
+
+  "rollen": [
+    "Product Owner",
+    "Product Manager",
+    "Digital Consultant",
+    "Digital Strategist"
+  ],
+
+  "must_haves": [
+    "hybride",
+    "digitale omgeving",
+    "eigenaarschap"
+  ],
+
+  "uitsluiten": [
+    "gemeente",
+    "overheid",
+    "provincie"
+  ]
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "type": "greenhouse",
+    "company": "vercel",
+    "url": "https://boards.greenhouse.io/vercel"
+  },
+  {
+    "type": "greenhouse",
+    "company": "stripe",
+    "url": "https://boards.greenhouse.io/stripe"
+  }
+]

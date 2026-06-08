@@ -1,0 +1,10 @@
+{
+  "watch": [
+    "server.js",
+    "data/vacatures.json"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules"
+  ]
+}

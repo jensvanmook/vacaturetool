@@ -1,0 +1,9 @@
+{
+  "name": "vacaturetool-v2",
+  "version": "1.0.0",
+  "main": "scraper.js",
+  "scripts": {
+    "scrape": "node scraper.js"
+  },
+  "dependencies": {}
+}
