@@ -3,59 +3,76 @@ const path = require("path");
 
 const DATA_FILE = path.join(__dirname, "data", "vacatures.json");
 
-// 🌐 1. MULTI PAGE / GROTERE FETCH
-async function fetchVacatures() {
+
+// 🌐 1. SOURCE 1: REMOTIVE (FREE)
+async function fetchRemotive() {
   try {
     const res = await fetch("https://remotive.com/api/remote-jobs");
     const data = await res.json();
 
-    // 🔥 neem veel meer jobs (200 max)
-    return data.jobs.slice(0, 200).map(job => ({
-      title: job.title || "",
-      company: job.company_name || "",
-      location: job.candidate_required_location || "Remote",
-      description: job.description || "",
-      url: job.url || "",
+    return data.jobs.slice(0, 100).map(job => ({
+      title: job.title,
+      company: job.company_name,
+      location: job.candidate_required_location,
+      description: job.description,
+      url: job.url,
       source: "remotive"
     }));
-  } catch (err) {
-    console.error("API error:", err);
+  } catch (e) {
+    console.error("Remotive error:", e);
     return [];
   }
 }
 
-// 🧠 2. BETERE AI SCORING (breder + slimmer)
+
+// 🌐 2. SOURCE 2: ARBEITNOW (FREE API)
+async function fetchArbeitnow() {
+  try {
+    const res = await fetch("https://www.arbeitnow.com/api/job-board-api");
+    const data = await res.json();
+
+    return data.data.slice(0, 100).map(job => ({
+      title: job.title,
+      company: job.company_name || "Unknown",
+      location: job.location || "Remote",
+      description: job.description,
+      url: job.url,
+      source: "arbeitnow"
+    }));
+  } catch (e) {
+    console.error("Arbeitnow error:", e);
+    return [];
+  }
+}
+
+
+// 🧠 3. AI SCORING ENGINE
 function scoreJob(job) {
   const text = (job.title + " " + job.description).toLowerCase();
 
   let score = 0;
   let reasons = [];
 
-  // frontend stack
   if (text.includes("frontend") || text.includes("react") || text.includes("vue")) {
     score += 40;
-    reasons.push("Frontend stack");
+    reasons.push("Frontend match");
   }
 
-  // backend stack
   if (text.includes("backend") || text.includes("node") || text.includes("api")) {
-    score += 30;
-    reasons.push("Backend stack");
+    score += 35;
+    reasons.push("Backend match");
   }
 
-  // javascript ecosystem
   if (text.includes("javascript") || text.includes("typescript")) {
     score += 25;
     reasons.push("JS/TS skill");
   }
 
-  // remote boost
   if (job.location?.toLowerCase().includes("remote")) {
     score += 25;
-    reasons.push("Remote friendly");
+    reasons.push("Remote");
   }
 
-  // senior boost
   if (text.includes("senior")) {
     score += 10;
     reasons.push("Senior level");
@@ -68,19 +85,13 @@ function scoreJob(job) {
   };
 }
 
-// 🧹 3. BETERE FILTER (niet alles weggooien)
-function filterJobs(jobs) {
-  return jobs.filter(job => {
-    return job.title && job.company;
-  });
-}
 
-// 🧹 4. DEDUPE
-function removeDuplicates(jobs) {
+// 🧹 4. MERGE + DEDUPE
+function mergeAndDeduplicate(allJobs) {
   const seen = new Set();
 
-  return jobs.filter(job => {
-    const key = job.title + job.company;
+  return allJobs.filter(job => {
+    const key = (job.title + job.company).toLowerCase();
 
     if (seen.has(key)) return false;
 
@@ -89,20 +100,25 @@ function removeDuplicates(jobs) {
   });
 }
 
-// 🚀 5. RUNNER
+
+// 🚀 5. MAIN RUN
 async function run() {
-  console.log("🔄 Fetching jobs...");
+  console.log("🔄 Fetching from multiple sources...");
 
-  const jobs = await fetchVacatures();
+  const [remotive, arbeitnow] = await Promise.all([
+    fetchRemotive(),
+    fetchArbeitnow()
+  ]);
 
-  console.log("📦 Raw jobs:", jobs.length);
+  let jobs = [...remotive, ...arbeitnow];
 
-  const cleaned = filterJobs(jobs);
-  const scored = cleaned.map(scoreJob);
-  const deduped = removeDuplicates(scored);
+  console.log("📦 Total raw jobs:", jobs.length);
 
-  // 🔥 sort op best match
-  deduped.sort((a, b) => b.score - a.score);
+  jobs = jobs.map(scoreJob);
+
+  jobs = mergeAndDeduplicate(jobs);
+
+  jobs.sort((a, b) => b.score - a.score);
 
   // 📁 ensure folder
   const dir = path.dirname(DATA_FILE);
@@ -112,10 +128,10 @@ async function run() {
 
   fs.writeFileSync(
     DATA_FILE,
-    JSON.stringify(deduped, null, 2)
+    JSON.stringify(jobs, null, 2)
   );
 
-  console.log("✅ Final jobs:", deduped.length);
+  console.log("✅ Final jobs after merge:", jobs.length);
 }
 
 run();
