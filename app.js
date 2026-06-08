@@ -2,7 +2,7 @@ const container = document.getElementById("jobs");
 
 async function loadJobs() {
   try {
-    const res = await fetch("./data/vacatures.json");
+    const res = await fetch("./data/vacatures.json?v=" + Date.now());
 
     if (!res.ok) {
       throw new Error("Kan vacatures.json niet laden");
