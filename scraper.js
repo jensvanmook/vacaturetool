@@ -1,17 +1,16 @@
 const fs = require("fs");
 const path = require("path");
 
-// 📁 safe output pad
 const DATA_FILE = path.join(__dirname, "data", "vacatures.json");
 
-// 🌐 1. VACATURES OPHALEN VAN INTERNET (ECHTE API)
+// 🌐 1. MULTI PAGE / GROTERE FETCH
 async function fetchVacatures() {
   try {
     const res = await fetch("https://remotive.com/api/remote-jobs");
     const data = await res.json();
 
-    // 🔥 pak eerste 20 jobs
-    return data.jobs.slice(0, 20).map(job => ({
+    // 🔥 neem veel meer jobs (200 max)
+    return data.jobs.slice(0, 200).map(job => ({
       title: job.title || "",
       company: job.company_name || "",
       location: job.candidate_required_location || "Remote",
@@ -20,48 +19,46 @@ async function fetchVacatures() {
       source: "remotive"
     }));
   } catch (err) {
-    console.error("❌ Error fetching API:", err);
-
-    // fallback zodat pipeline nooit crasht
+    console.error("API error:", err);
     return [];
   }
 }
 
-// 🧠 2. SIMPLE AI SCORING ENGINE
+// 🧠 2. BETERE AI SCORING (breder + slimmer)
 function scoreJob(job) {
   const text = (job.title + " " + job.description).toLowerCase();
 
   let score = 0;
   let reasons = [];
 
-  if (text.includes("frontend")) {
+  // frontend stack
+  if (text.includes("frontend") || text.includes("react") || text.includes("vue")) {
     score += 40;
-    reasons.push("Frontend match");
+    reasons.push("Frontend stack");
   }
 
-  if (text.includes("backend")) {
+  // backend stack
+  if (text.includes("backend") || text.includes("node") || text.includes("api")) {
     score += 30;
-    reasons.push("Backend match");
+    reasons.push("Backend stack");
   }
 
-  if (text.includes("react")) {
+  // javascript ecosystem
+  if (text.includes("javascript") || text.includes("typescript")) {
     score += 25;
-    reasons.push("React skill");
+    reasons.push("JS/TS skill");
   }
 
-  if (text.includes("javascript")) {
-    score += 20;
-    reasons.push("JavaScript skill");
-  }
-
-  if (text.includes("node")) {
-    score += 20;
-    reasons.push("Node.js skill");
-  }
-
+  // remote boost
   if (job.location?.toLowerCase().includes("remote")) {
-    score += 20;
-    reasons.push("Remote mogelijk");
+    score += 25;
+    reasons.push("Remote friendly");
+  }
+
+  // senior boost
+  if (text.includes("senior")) {
+    score += 10;
+    reasons.push("Senior level");
   }
 
   return {
@@ -71,7 +68,14 @@ function scoreJob(job) {
   };
 }
 
-// 🧹 3. OPTIONAL: DUPLICATES CLEANING
+// 🧹 3. BETERE FILTER (niet alles weggooien)
+function filterJobs(jobs) {
+  return jobs.filter(job => {
+    return job.title && job.company;
+  });
+}
+
+// 🧹 4. DEDUPE
 function removeDuplicates(jobs) {
   const seen = new Set();
 
@@ -85,38 +89,33 @@ function removeDuplicates(jobs) {
   });
 }
 
-// 🚀 4. MAIN RUNNER
+// 🚀 5. RUNNER
 async function run() {
   console.log("🔄 Fetching jobs...");
 
   const jobs = await fetchVacatures();
 
-  if (!jobs.length) {
-    console.log("⚠️ No jobs found, stopping.");
-    return;
-  }
+  console.log("📦 Raw jobs:", jobs.length);
 
-  console.log(`📦 Jobs fetched: ${jobs.length}`);
+  const cleaned = filterJobs(jobs);
+  const scored = cleaned.map(scoreJob);
+  const deduped = removeDuplicates(scored);
 
-  const scored = jobs.map(scoreJob);
+  // 🔥 sort op best match
+  deduped.sort((a, b) => b.score - a.score);
 
-  const cleaned = removeDuplicates(scored);
-
-  cleaned.sort((a, b) => b.score - a.score);
-
-  // 📁 zorg dat folder bestaat
+  // 📁 ensure folder
   const dir = path.dirname(DATA_FILE);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  // 💾 schrijf JSON
   fs.writeFileSync(
     DATA_FILE,
-    JSON.stringify(cleaned, null, 2)
+    JSON.stringify(deduped, null, 2)
   );
 
-  console.log("✅ Vacatures updated:", cleaned.length);
+  console.log("✅ Final jobs:", deduped.length);
 }
 
 run();
