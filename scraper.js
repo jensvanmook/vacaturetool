@@ -1,46 +1,12 @@
 // scraper.js
-// 🇳🇱 NL ONLY JOB SCRAPER ENGINE (STRICT MODE)
+// 🇳🇱 ZERO-LEAK NL ONLY ENGINE
 
-console.log("🔥 SCRAPER VERSION: NL-ONLY-HARDLOCK-V1");
-console.log("🚀 STARTING CLEAN JOB ENGINE");
-
-// ----------------------------
-// IMPORTS
-// ----------------------------
+console.log("🔥 NL ONLY SCRAPER - ZERO LEAK MODE");
 
 const fs = require("fs");
 
 // ----------------------------
-// CONFIG
-// ----------------------------
-
-// ❌ EVERYTHING OUTSIDE NL IS BLOCKED
-const BLOCKED = [
-  "canada",
-  "united states",
-  "usa",
-  "us",
-  "latam",
-  "brazil",
-  "mexico",
-  "argentina",
-  "india",
-  "israel",
-  "americas",
-  "europe",
-  "germany",
-  "france",
-  "spain",
-  "italy",
-  "poland",
-  "uk",
-  "united kingdom",
-  "remote",
-  "worldwide"
-];
-
-// ----------------------------
-// FETCH FUNCTIONS
+// FETCHERS
 // ----------------------------
 
 async function fetchRemotive() {
@@ -70,25 +36,28 @@ async function fetchArbeitnow() {
 }
 
 // ----------------------------
-// NL STRICT FILTER
+// HARD NL FILTER (STRICT)
 // ----------------------------
 
 function isNLOnly(job) {
-  const loc = (job.location || "").toLowerCase();
+  const loc = (job.location || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
-  // ❌ HARD BLOCK EVERYTHING NON-NL
-  if (BLOCKED.some(b => loc.includes(b))) {
-    return false;
-  }
-
-  // ✅ MUST EXPLICITLY CONTAIN NETHERLANDS SIGNAL
-  const isNL =
+  // ONLY ACCEPT THESE EXACT NL SIGNALS
+  return (
+    loc === "netherlands" ||
+    loc === "the netherlands" ||
     loc.includes("netherlands") ||
     loc.includes("holland") ||
-    loc.includes("nl") ||
-    loc.includes("the netherlands");
-
-  return isNL;
+    loc.includes("amsterdam") ||
+    loc.includes("rotterdam") ||
+    loc.includes("utrecht") ||
+    loc.includes("eindhoven") ||
+    loc.includes("den haag") ||
+    loc.includes("netherlands, remote")
+  );
 }
 
 // ----------------------------
@@ -109,7 +78,7 @@ function dedupe(jobs) {
 }
 
 // ----------------------------
-// MAIN RUNNER
+// MAIN
 // ----------------------------
 
 async function run() {
@@ -120,24 +89,22 @@ async function run() {
 
   console.log("📦 RAW:", raw.length);
 
-  // FILTER
   const filtered = raw.filter(isNLOnly);
 
-  console.log("🇳🇱 NL ONLY RESULT:", filtered.length);
+  console.log("🇳🇱 NL ONLY FINAL:", filtered.length);
 
   const final = dedupe(filtered);
 
-  console.log("🏁 FINAL:", final.length);
+  console.log("🏁 DEDUPED:", final.length);
 
-  console.log("🔥 TOP 3:", final.slice(0, 3));
+  console.log("🔥 TOP 5:", final.slice(0, 5));
 
-  // SAVE
   fs.writeFileSync(
     "./data/vacatures.json",
     JSON.stringify(final, null, 2)
   );
 
-  console.log("💾 WRITTEN NL-ONLY RESULTS");
+  console.log("💾 SAVED CLEAN NL DATA");
 }
 
 run();
