@@ -3,7 +3,16 @@
     "title": "Frontend Developer",
     "company": "Tech BV",
     "location": "Remote",
-    "score": 90,
-    "reason": "React + Remote match"
+    "description": "React developer",
+    "score": 70,
+    "reason": "Frontend match + Remote mogelijk"
+  },
+  {
+    "title": "Backend Developer",
+    "company": "DataCorp",
+    "location": "Utrecht",
+    "description": "Node.js API",
+    "score": 30,
+    "reason": "Backend match"
   }
 ]
