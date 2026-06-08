@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "title": "Frontend Developer",
+    "company": "Tech BV",
+    "location": "Remote",
+    "score": 90,
+    "reason": "React + Remote match"
+  }
+]

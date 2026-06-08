@@ -3,6 +3,11 @@ const container = document.getElementById("jobs");
 async function loadJobs() {
   try {
     const res = await fetch("./data/vacatures.json");
+
+    if (!res.ok) {
+      throw new Error("Kan vacatures.json niet laden");
+    }
+
     const jobs = await res.json();
 
     renderJobs(jobs);
@@ -24,7 +29,7 @@ function renderJobs(jobs) {
         <h2>${job.title}</h2>
         <p><strong>${job.company}</strong></p>
         <p>📍 ${job.location}</p>
-        <p>⭐ Score: ${job.score}</p>
+        <p>⭐ ${job.score}</p>
         <p>🧠 ${job.reason}</p>
       `;
 
