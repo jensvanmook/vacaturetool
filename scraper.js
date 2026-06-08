@@ -3,94 +3,90 @@ const path = require("path");
 
 const DATA_FILE = path.join(__dirname, "data", "vacatures.json");
 
-
-// 🌐 1. SOURCE 1: REMOTIVE (FREE)
+// 🌐 SOURCE 1: REMOTIVE
 async function fetchRemotive() {
   try {
     const res = await fetch("https://remotive.com/api/remote-jobs");
     const data = await res.json();
 
-    return data.jobs.slice(0, 100).map(job => ({
-      title: job.title,
-      company: job.company_name,
-      location: job.candidate_required_location,
-      description: job.description,
-      url: job.url,
+    return (data.jobs || []).map(job => ({
+      title: job.title || "",
+      company: job.company_name || "",
+      location: job.candidate_required_location || "Remote",
+      description: job.description || "",
+      url: job.url || "",
       source: "remotive"
     }));
-  } catch (e) {
-    console.error("Remotive error:", e);
+  } catch (err) {
+    console.error("❌ Remotive error:", err.message);
     return [];
   }
 }
 
-
-// 🌐 2. SOURCE 2: ARBEITNOW (FREE API)
+// 🌐 SOURCE 2: ARBEITNOW
 async function fetchArbeitnow() {
   try {
     const res = await fetch("https://www.arbeitnow.com/api/job-board-api");
     const data = await res.json();
 
-    return data.data.slice(0, 100).map(job => ({
-      title: job.title,
+    return (data.data || []).map(job => ({
+      title: job.title || "",
       company: job.company_name || "Unknown",
       location: job.location || "Remote",
-      description: job.description,
-      url: job.url,
+      description: job.description || "",
+      url: job.url || "",
       source: "arbeitnow"
     }));
-  } catch (e) {
-    console.error("Arbeitnow error:", e);
+  } catch (err) {
+    console.error("❌ Arbeitnow error:", err.message);
     return [];
   }
 }
 
-
-// 🧠 3. AI SCORING ENGINE
+// 🧠 BETERE AI SCORING (BELANGRIJK: baseline score voorkomt dat alles verdwijnt)
 function scoreJob(job) {
   const text = (job.title + " " + job.description).toLowerCase();
 
-  let score = 0;
+  let score = 15; // 🔥 baseline zodat bijna alles “meedoet”
   let reasons = [];
 
-  if (text.includes("frontend") || text.includes("react") || text.includes("vue")) {
-    score += 40;
-    reasons.push("Frontend match");
+  if (text.includes("frontend") || text.includes("react") || text.includes("vue") || text.includes("ui")) {
+    score += 30;
+    reasons.push("Frontend/UI");
   }
 
-  if (text.includes("backend") || text.includes("node") || text.includes("api")) {
-    score += 35;
-    reasons.push("Backend match");
+  if (text.includes("backend") || text.includes("api") || text.includes("node") || text.includes("server")) {
+    score += 25;
+    reasons.push("Backend/API");
   }
 
   if (text.includes("javascript") || text.includes("typescript")) {
-    score += 25;
-    reasons.push("JS/TS skill");
+    score += 20;
+    reasons.push("JS/TS");
+  }
+
+  if (text.includes("developer") || text.includes("engineer") || text.includes("software")) {
+    score += 15;
+    reasons.push("Developer role");
   }
 
   if (job.location?.toLowerCase().includes("remote")) {
-    score += 25;
+    score += 20;
     reasons.push("Remote");
-  }
-
-  if (text.includes("senior")) {
-    score += 10;
-    reasons.push("Senior level");
   }
 
   return {
     ...job,
     score,
-    reason: reasons.length ? reasons.join(" + ") : "General match"
+    reason: reasons.length ? reasons.join(" + ") : "General dev job"
   };
 }
 
-
-// 🧹 4. MERGE + DEDUPE
-function mergeAndDeduplicate(allJobs) {
+// 🧹 DEDUPE (voorkomt dubbele jobs)
+function dedupeJobs(jobs) {
   const seen = new Set();
 
-  return allJobs.filter(job => {
+  return jobs.filter(job => {
     const key = (job.title + job.company).toLowerCase();
 
     if (seen.has(key)) return false;
@@ -100,38 +96,45 @@ function mergeAndDeduplicate(allJobs) {
   });
 }
 
+// 🧪 CLEANING (NIET TE AGRESSIEF)
+function cleanJobs(jobs) {
+  return jobs.filter(job => job.title && job.company);
+}
 
-// 🚀 5. MAIN RUN
+// 🚀 MAIN RUNNER
 async function run() {
-  console.log("🔄 Fetching from multiple sources...");
+  console.log("🔄 Starting multi-source job fetch...");
 
   const [remotive, arbeitnow] = await Promise.all([
     fetchRemotive(),
     fetchArbeitnow()
   ]);
 
+  console.log("📦 Remotive jobs:", remotive.length);
+  console.log("📦 Arbeitnow jobs:", arbeitnow.length);
+
   let jobs = [...remotive, ...arbeitnow];
 
-  console.log("📦 Total raw jobs:", jobs.length);
+  console.log("📦 Combined jobs:", jobs.length);
+
+  jobs = cleanJobs(jobs);
 
   jobs = jobs.map(scoreJob);
 
-  jobs = mergeAndDeduplicate(jobs);
+  jobs = dedupeJobs(jobs);
 
   jobs.sort((a, b) => b.score - a.score);
 
-  // 📁 ensure folder
+  // 📁 ensure folder exists
   const dir = path.dirname(DATA_FILE);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  fs.writeFileSync(
-    DATA_FILE,
-    JSON.stringify(jobs, null, 2)
-  );
+  fs.writeFileSync(DATA_FILE, JSON.stringify(jobs, null, 2));
 
-  console.log("✅ Final jobs after merge:", jobs.length);
+  console.log("✅ FINAL JOBS:", jobs.length);
+  console.log("🏆 TOP JOB:", jobs[0]?.title);
 }
 
 run();
