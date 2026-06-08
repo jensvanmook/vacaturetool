@@ -1,34 +1,24 @@
 name: Update vacatures
 
 on:
-  schedule:
-    - cron: "0 */6 * * *"  # elke 6 uur
-  workflow_dispatch:        # handmatig runnen knop
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Repo ophalen
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # 2. Node installeren
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
-      # 3. Dependencies installeren (veilig, ook als leeg)
-      - name: Install dependencies
-        run: npm install
-
-      # 4. Scraper draaien
       - name: Run scraper
         run: node scraper.js
 
-      # 5. Changes committen terug naar repo
       - name: Commit changes
         run: |
           git config user.name "github-actions"

@@ -1,25 +1,30 @@
 const fs = require("fs");
+const path = require("path");
 
-// 🔍 HIER KOMT LATER JE ECHTE SCRAPING BRON
-async function fetchVacatures() {
-  // nu nog mock data (later API / scraping)
-  return [
-    {
-      title: "Frontend Developer",
-      company: "Tech BV",
-      location: "Remote",
-      description: "React developer met ervaring in UI"
-    },
-    {
-      title: "Backend Developer",
-      company: "DataCorp",
-      location: "Utrecht",
-      description: "Node.js + databases"
-    }
-  ];
+// zorg dat data folder altijd bestaat
+const dataDir = path.join(__dirname, "data");
+const filePath = path.join(dataDir, "vacatures.json");
+
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir);
 }
 
-// 🧠 simpele AI scoring engine (basis versie)
+// voorbeeld data
+let vacatures = [
+  {
+    title: "Frontend Developer",
+    company: "Tech BV",
+    location: "Remote",
+    description: "React developer"
+  },
+  {
+    title: "Backend Developer",
+    company: "DataCorp",
+    location: "Utrecht",
+    description: "Node.js API"
+  }
+];
+
 function scoreJob(job) {
   let score = 0;
 
@@ -40,20 +45,13 @@ function scoreJob(job) {
   };
 }
 
-async function run() {
-  const vacatures = await fetchVacatures();
+const processed = vacatures.map(scoreJob);
 
-  const processed = vacatures.map(scoreJob);
+processed.sort((a, b) => b.score - a.score);
 
-  // sorteer op best match
-  processed.sort((a, b) => b.score - a.score);
+fs.writeFileSync(
+  filePath,
+  JSON.stringify(processed, null, 2)
+);
 
-  fs.writeFileSync(
-    "./data/vacatures.json",
-    JSON.stringify(processed, null, 2)
-  );
-
-  console.log("✅ Vacatures updated:", processed.length);
-}
-
-run();
+console.log("Vacatures updated:", processed.length);
